@@ -63,6 +63,7 @@ class CONFIGSYNCPATHS(Base):
     DEST = Column(Text)
     UNKNOWN = Column(Text)
     MODE = Column(Text)
+    COMPATIBILITY = Column(Integer)
     RENAME = Column(Integer)
     ENABLED = Column(Integer)
     NOTE = Column(Text)
@@ -132,25 +133,6 @@ class CUSTOMWORDGROUPS(Base):
     NOTE = Column(Text)
 
 
-class DOUBANMEDIAS(Base):
-    __tablename__ = 'DOUBAN_MEDIAS'
-    __table_args__ = (
-        Index('INDX_DOUBAN_MEDIAS_NAME', 'NAME', 'YEAR'),
-    )
-
-    ID = Column(Integer, Sequence('ID'), primary_key=True)
-    NAME = Column(Text)
-    YEAR = Column(Text)
-    TYPE = Column(Text)
-    RATING = Column(Text)
-    IMAGE = Column(Text)
-    STATE = Column(Text)
-    ADD_TIME = Column(Text)
-
-    def as_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-
-
 class DOWNLOADER(Base):
     __tablename__ = 'DOWNLOADER'
 
@@ -174,6 +156,7 @@ class DOWNLOADHISTORY(Base):
     YEAR = Column(Text)
     TYPE = Column(Text)
     TMDBID = Column(Text)
+    SE = Column(Text)
     VOTE = Column(Text)
     POSTER = Column(Text)
     OVERVIEW = Column(Text)
@@ -183,6 +166,7 @@ class DOWNLOADHISTORY(Base):
     DESC = Column(Text)
     DOWNLOADER = Column(Text)
     DOWNLOAD_ID = Column(Text, index=True)
+    SAVE_PATH = Column(Text, index=True)
     DATE = Column(Text, index=True)
 
     def as_dict(self):
@@ -196,7 +180,6 @@ class DOWNLOADSETTING(Base):
     NAME = Column(Text)
     CATEGORY = Column(Text)
     TAGS = Column(Text)
-    CONTENT_LAYOUT = Column(Integer)
     IS_PAUSED = Column(Integer)
     UPLOAD_LIMIT = Column(Integer)
     DOWNLOAD_LIMIT = Column(Integer)
@@ -257,6 +240,8 @@ class RSSMOVIES(Base):
     FILTER_PIX = Column(Text)
     FILTER_RULE = Column(Integer)
     FILTER_TEAM = Column(Text)
+    FILTER_INCLUDE = Column(Text)
+    FILTER_EXCLUDE = Column(Text)
     SAVE_PATH = Column(Text)
     DOWNLOAD_SETTING = Column(Integer)
     FUZZY_MATCH = Column(Integer)
@@ -302,6 +287,8 @@ class RSSTVS(Base):
     FILTER_PIX = Column(Text)
     FILTER_RULE = Column(Integer)
     FILTER_TEAM = Column(Text)
+    FILTER_INCLUDE = Column(Text)
+    FILTER_EXCLUDE = Column(Text)
     SAVE_PATH = Column(Text)
     DOWNLOAD_SETTING = Column(Integer)
     FUZZY_MATCH = Column(Integer)
@@ -378,12 +365,14 @@ class SITEBRUSHTASK(Base):
     ID = Column(Integer, Sequence('ID'), primary_key=True)
     NAME = Column(Text, index=True)
     SITE = Column(Text)
+    RSSURL = Column(Text)
     FREELEECH = Column(Text)
     RSS_RULE = Column(Text)
     REMOVE_RULE = Column(Text)
     SEED_SIZE = Column(Text)
     INTEVAL = Column(Text)
     LABEL = Column(Text)
+    SAVEPATH = Column(Text)
     DOWNLOADER = Column(Text)
     TRANSFER = Column(Text)
     DOWNLOAD_COUNT = Column(Integer)
@@ -402,7 +391,7 @@ class SITEBRUSHTORRENTS(Base):
     TASK_ID = Column(Text, index=True)
     TORRENT_NAME = Column(Text)
     TORRENT_SIZE = Column(Text)
-    ENCLOSURE = Column(Text)
+    ENCLOSURE = Column(Text, index=True)
     DOWNLOADER = Column(Text)
     DOWNLOAD_ID = Column(Text)
     LST_MOD_DATE = Column(Text)
@@ -520,7 +509,7 @@ class TRANSFERHISTORY(Base):
     DEST = Column(Text)
     DEST_PATH = Column(Text)
     DEST_FILENAME = Column(Text)
-    DATE = Column(Text)
+    DATE = Column(Text, index=True)
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -557,6 +546,16 @@ class USERRSSTASKHISTORY(Base):
     TASK_ID = Column(Text, index=True)
     TITLE = Column(Text)
     DOWNLOADER = Column(Text)
+    DATE = Column(Text)
+
+
+class PLUGINHISTORY(Base):
+    __tablename__ = 'PLUGIN_HISTORY'
+
+    ID = Column(Integer, Sequence('ID'), primary_key=True)
+    PLUGIN_ID = Column(Text, index=True)
+    KEY = Column(Text, index=True)
+    VALUE = Column(Text)
     DATE = Column(Text)
 
 

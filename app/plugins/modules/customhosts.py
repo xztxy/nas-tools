@@ -1,10 +1,8 @@
 from python_hosts import Hosts, HostsEntry
 
-import log
 from app.plugins import EventHandler
 from app.plugins.modules._base import _IPluginModule
-from app.utils import SystemUtils
-from app.utils.ip_utils import IpUtils
+from app.utils import SystemUtils, IpUtils
 from app.utils.types import EventType
 
 
@@ -16,11 +14,13 @@ class CustomHosts(_IPluginModule):
     # 插件图标
     module_icon = "hosts.png"
     # 主题色
-    module_color = "bg-cyan"
+    module_color = "#02C4E0"
     # 插件版本
     module_version = "1.0"
     # 插件作者
     module_author = "thsrite"
+    # 作者主页
+    author_url = "https://github.com/thsrite"
     # 插件配置项ID前缀
     module_config_prefix = "customhosts_"
     # 加载顺序
@@ -108,12 +108,17 @@ class CustomHosts(_IPluginModule):
                     "enable": self._enable
                 })
 
-    @EventHandler.register(EventType.CustomHostsReload)
+    @EventHandler.register(EventType.PluginReload)
     def reload(self, event):
         """
-        CloudflareSpeedTest优选ip后重载本插件
+        响应插件重载事件
         """
-        self.init_config(event.event_data)
+        plugin_id = event.event_data.get("plugin_id")
+        if not plugin_id:
+            return
+        if plugin_id != self.__class__.__name__:
+            return
+        return self.init_config(self.get_config())
 
     @staticmethod
     def __read_system_hosts():
@@ -157,7 +162,7 @@ class CustomHosts(_IPluginModule):
                 new_entrys.append(host_entry)
             except Exception as err:
                 err_hosts.append(host + "\n")
-                log.error(f"【Plugin】{host} 格式转换错误：{str(err)}")
+                self.error(f"{host} 格式转换错误：{str(err)}")
 
         # 写入系统hosts
         if new_entrys:
@@ -167,10 +172,10 @@ class CustomHosts(_IPluginModule):
                 # 添加新的Hosts
                 system_hosts.add(new_entrys)
                 system_hosts.write()
-                log.info("【Plugin】更新系统hosts文件成功")
+                self.info("更新系统hosts文件成功")
             except Exception as err:
                 err_flag = True
-                log.error(f"【Plugin】更新系统hosts文件失败：{str(err) or '请检查权限'}")
+                self.error(f"更新系统hosts文件失败：{str(err) or '请检查权限'}")
         return err_flag, err_hosts
 
     def get_state(self):

@@ -67,139 +67,22 @@ class DbHelper:
 
     def get_search_result_by_id(self, dl_id):
         """
-        根据ID从数据库中查询检索结果的一条记录
+        根据ID从数据库中查询搜索结果的一条记录
         """
         return self._db.query(SEARCHRESULTINFO).filter(SEARCHRESULTINFO.ID == dl_id).all()
 
-    def get_search_results(self, ):
+    def get_search_results(self):
         """
-        查询检索结果的所有记录
+        查询搜索结果的所有记录
         """
         return self._db.query(SEARCHRESULTINFO).all()
 
-    def is_torrent_rssd(self, enclosure):
-        """
-        查询RSS是否处理过，根据下载链接
-        """
-        if not enclosure:
-            return True
-        if self._db.query(RSSTORRENTS).filter(RSSTORRENTS.ENCLOSURE == enclosure).count() > 0:
-            return True
-        else:
-            return False
-
-    def is_userrss_finished(self, torrent_name, enclosure):
-        """
-        查询RSS是否处理过，根据名称
-        """
-        if not torrent_name and not enclosure:
-            return True
-        if enclosure:
-            ret = self._db.query(RSSTORRENTS).filter(RSSTORRENTS.ENCLOSURE == enclosure).count()
-        else:
-            ret = self._db.query(RSSTORRENTS).filter(RSSTORRENTS.TORRENT_NAME == torrent_name).count()
-        return True if ret > 0 else False
-
     @DbPersist(_db)
-    def delete_all_search_torrents(self, ):
+    def delete_all_search_torrents(self):
         """
         删除所有搜索的记录
         """
         self._db.query(SEARCHRESULTINFO).delete()
-
-    @DbPersist(_db)
-    def insert_rss_torrents(self, media_info):
-        """
-        将RSS的记录插入数据库
-        """
-        self._db.insert(
-            RSSTORRENTS(
-                TORRENT_NAME=media_info.org_string,
-                ENCLOSURE=media_info.enclosure,
-                TYPE=media_info.type.value,
-                TITLE=media_info.title,
-                YEAR=media_info.year,
-                SEASON=media_info.get_season_string(),
-                EPISODE=media_info.get_episode_string()
-            ))
-
-    @DbPersist(_db)
-    def simple_insert_rss_torrents(self, title, enclosure):
-        """
-        将RSS的记录插入数据库
-        """
-        self._db.insert(
-            RSSTORRENTS(
-                TORRENT_NAME=title,
-                ENCLOSURE=enclosure
-            ))
-
-    @DbPersist(_db)
-    def simple_delete_rss_torrents(self, title, enclosure):
-        """
-        删除RSS的记录
-        """
-        if enclosure:
-            self._db.query(RSSTORRENTS).filter(RSSTORRENTS.TORRENT_NAME == title,
-                                               RSSTORRENTS.ENCLOSURE == enclosure).delete()
-        else:
-            self._db.query(RSSTORRENTS).filter(RSSTORRENTS.TORRENT_NAME == title).delete()
-
-    def is_douban_media_exists(self, media):
-        """
-        查询豆瓣是否存在
-        """
-        if not media:
-            return True
-        if self._db.query(DOUBANMEDIAS).filter(DOUBANMEDIAS.NAME == media.get_name()).count() > 0:
-            return True
-        else:
-            return False
-
-    @DbPersist(_db)
-    def insert_douban_media_state(self, media, state):
-        """
-        将豆瓣的数据插入数据库
-        """
-        if not media or not state:
-            return
-        if self.is_douban_media_exists(media):
-            return
-        else:
-            # 插入
-            self._db.insert(
-                DOUBANMEDIAS(
-                    NAME=media.get_name(),
-                    YEAR=media.year,
-                    TYPE=media.type.value,
-                    RATING=media.vote_average,
-                    IMAGE=media.get_poster_image(),
-                    STATE=state,
-                    ADD_TIME=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-                )
-            )
-
-    @DbPersist(_db)
-    def update_douban_media_state(self, media, state):
-        """
-        标记豆瓣数据的状态
-        """
-        self._db.query(DOUBANMEDIAS).filter(DOUBANMEDIAS.NAME == media.title,
-                                            DOUBANMEDIAS.YEAR == media.year).update(
-            {
-                "STATE": state
-            }
-        )
-
-    def get_douban_search_state(self, title, year=None):
-        """
-        查询未检索的豆瓣数据
-        """
-        if not year:
-            return self._db.query(DOUBANMEDIAS.STATE).filter(DOUBANMEDIAS.NAME == title).first()
-        else:
-            return self._db.query(DOUBANMEDIAS.STATE).filter(DOUBANMEDIAS.NAME == title,
-                                                             DOUBANMEDIAS.YEAR == str(year)).first()
 
     def is_transfer_history_exists(self, source_path, source_filename, dest_path, dest_filename):
         """
@@ -301,6 +184,23 @@ class DbHelper:
         """
         return self._db.query(TRANSFERHISTORY).filter(TRANSFERHISTORY.ID == int(logid)).first()
 
+    def get_transfer_info_by(self, tmdbid, season=None, season_episode=None):
+        """
+        据tmdbid、season、season_episode查询转移记录
+        """
+        # 电视剧所有季集｜电影
+        if tmdbid and not season and not season_episode:
+            return self._db.query(TRANSFERHISTORY).filter(TRANSFERHISTORY.TMDBID == int(tmdbid)).all()
+        # 电视剧某季
+        if tmdbid and season:
+            season = f"%{season}%"
+            return self._db.query(TRANSFERHISTORY).filter(TRANSFERHISTORY.TMDBID == int(tmdbid),
+                                                          TRANSFERHISTORY.SEASON_EPISODE.like(season)).all()
+        # 电视剧某季某集
+        if tmdbid and season_episode:
+            return self._db.query(TRANSFERHISTORY).filter(TRANSFERHISTORY.TMDBID == int(tmdbid),
+                                                          TRANSFERHISTORY.SEASON_EPISODE == season_episode).all()
+
     def is_transfer_history_exists_by_source_full_path(self, source_full_path):
         """
         据源文件的全路径查询识别转移记录
@@ -322,7 +222,7 @@ class DbHelper:
         """
         self._db.query(TRANSFERHISTORY).filter(TRANSFERHISTORY.ID == int(logid)).delete()
 
-    def get_transfer_unknown_paths(self, ):
+    def get_transfer_unknown_paths(self):
         """
         查询未识别的记录列表
         """
@@ -500,7 +400,7 @@ class DbHelper:
         self._db.query(SYNCHISTORY).filter(SYNCHISTORY.PATH == str(path)).delete()
 
     @DbPersist(_db)
-    def truncate_transfer_blacklist(self, ):
+    def truncate_transfer_blacklist(self):
         """
         清空黑名单记录
         """
@@ -508,20 +408,13 @@ class DbHelper:
         self._db.query(SYNCHISTORY).delete()
 
     @DbPersist(_db)
-    def truncate_rss_history(self, ):
-        """
-        清空RSS历史记录
-        """
-        self._db.query(RSSTORRENTS).delete()
-
-    @DbPersist(_db)
-    def truncate_rss_episodes(self, ):
+    def truncate_rss_episodes(self):
         """
         清空RSS历史记录
         """
         self._db.query(RSSTVEPISODES).delete()
 
-    def get_config_site(self, ):
+    def get_config_site(self):
         """
         查询所有站点信息
         """
@@ -533,15 +426,9 @@ class DbHelper:
         """
         return self._db.query(CONFIGSITE).filter(CONFIGSITE.ID == int(tid)).all()
 
-    def get_site_by_name(self, name):
-        """
-        基于站点名称查询站点信息
-        :return:
-        """
-        return self._db.query(CONFIGSITE).filter(CONFIGSITE.NAME == name).all()
-
     @DbPersist(_db)
-    def insert_config_site(self, name, site_pri, rssurl, signurl, cookie, note, rss_uses):
+    def insert_config_site(self, name, site_pri,
+                           rssurl=None, signurl=None, cookie=None, note=None, rss_uses=None):
         """
         插入站点信息
         """
@@ -764,6 +651,8 @@ class DbHelper:
                          filter_pix=None,
                          filter_team=None,
                          filter_rule=None,
+                         filter_include=None,
+                         filter_exclude=None,
                          save_path=None,
                          download_setting=-1,
                          fuzzy_match=0,
@@ -795,6 +684,8 @@ class DbHelper:
             FILTER_PIX=filter_pix,
             FILTER_RULE=filter_rule,
             FILTER_TEAM=filter_team,
+            FILTER_INCLUDE=filter_include,
+            FILTER_EXCLUDE=filter_exclude,
             SAVE_PATH=save_path,
             DOWNLOAD_SETTING=download_setting,
             FUZZY_MATCH=fuzzy_match,
@@ -960,6 +851,8 @@ class DbHelper:
                       filter_pix=None,
                       filter_team=None,
                       filter_rule=None,
+                      filter_include=None,
+                      filter_exclude=None,
                       save_path=None,
                       download_setting=-1,
                       total_ep=None,
@@ -998,6 +891,8 @@ class DbHelper:
             FILTER_PIX=filter_pix,
             FILTER_RULE=filter_rule,
             FILTER_TEAM=filter_team,
+            FILTER_INCLUDE=filter_include,
+            FILTER_EXCLUDE=filter_exclude,
             SAVE_PATH=save_path,
             DOWNLOAD_SETTING=download_setting,
             FUZZY_MATCH=fuzzy_match,
@@ -1602,7 +1497,7 @@ class DbHelper:
             return False
 
     @DbPersist(_db)
-    def insert_download_history(self, media_info, downloader, download_id):
+    def insert_download_history(self, media_info, downloader, download_id, save_dir):
         """
         新增下载历史
         """
@@ -1623,6 +1518,8 @@ class DbHelper:
                     "SITE": media_info.site,
                     "DOWNLOADER": downloader,
                     "DOWNLOAD_ID": download_id,
+                    "SAVE_PATH": save_dir,
+                    "SE": media_info.get_season_episode_string(),
                     "DATE": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())),
                 }
             )
@@ -1642,6 +1539,8 @@ class DbHelper:
                 SITE=media_info.site,
                 DOWNLOADER=downloader,
                 DOWNLOAD_ID=download_id,
+                SAVE_PATH=save_dir,
+                SE=media_info.get_season_episode_string()
             ))
 
     def get_download_history(self, date=None, hid=None, num=30, page=1):
@@ -1674,8 +1573,25 @@ class DbHelper:
         """
         return self._db.query(DOWNLOADHISTORY).filter(DOWNLOADHISTORY.TITLE == title).all()
 
+    def get_download_history_by_path(self, path):
+        """
+        根据路径查找下载历史
+        """
+        return self._db.query(DOWNLOADHISTORY).filter(
+            DOWNLOADHISTORY.SAVE_PATH == os.path.normpath(path)
+        ).order_by(DOWNLOADHISTORY.DATE.desc()).first()
+
+    def get_download_history_by_downloader(self, downloader, download_id):
+        """
+        根据下载器查找下载历史
+        """
+        return self._db.query(DOWNLOADHISTORY).filter(
+            DOWNLOADHISTORY.DOWNLOADER == downloader,
+            DOWNLOADHISTORY.DOWNLOAD_ID == download_id
+        ).order_by(DOWNLOADHISTORY.DATE.desc()).first()
+
     @DbPersist(_db)
-    def insert_brushtask(self, brush_id, item):
+    def update_brushtask(self, brush_id, item):
         """
         新增刷流任务
         """
@@ -1687,9 +1603,11 @@ class DbHelper:
                 RSS_RULE=str(item.get('rss_rule')),
                 REMOVE_RULE=str(item.get('remove_rule')),
                 SEED_SIZE=item.get('seed_size'),
+                RSSURL=item.get('rssurl'),
                 INTEVAL=item.get('interval'),
                 DOWNLOADER=item.get('downloader'),
                 LABEL=item.get('label'),
+                SAVEPATH=item.get('savepath'),
                 TRANSFER=item.get('transfer'),
                 DOWNLOAD_COUNT=0,
                 REMOVE_COUNT=0,
@@ -1708,9 +1626,11 @@ class DbHelper:
                     "RSS_RULE": str(item.get('rss_rule')),
                     "REMOVE_RULE": str(item.get('remove_rule')),
                     "SEED_SIZE": item.get('seed_size'),
+                    "RSSURL": item.get('rssurl'),
                     "INTEVAL": item.get('interval'),
                     "DOWNLOADER": item.get('downloader'),
                     "LABEL": item.get('label'),
+                    "SAVEPATH": item.get('savepath'),
                     "TRANSFER": item.get('transfer'),
                     "STATE": item.get('state'),
                     "LST_MOD_DATE": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())),
@@ -1751,6 +1671,24 @@ class DbHelper:
             return ret[0] or 0
         else:
             return 0
+
+    @DbPersist(_db)
+    def update_brushtask_state(self, state, tid=None):
+        """
+        改变所有刷流任务的状态
+        """
+        if tid:
+            self._db.query(SITEBRUSHTASK).filter(SITEBRUSHTASK.ID == int(tid)).update(
+                {
+                    "STATE": "Y" if state == "Y" else "N"
+                }
+            )
+        else:
+            self._db.query(SITEBRUSHTASK).update(
+                {
+                    "STATE": "Y" if state == "Y" else "N"
+                }
+            )
 
     @DbPersist(_db)
     def add_brushtask_download_count(self, brush_id):
@@ -1834,6 +1772,14 @@ class DbHelper:
             return self._db.query(SITEBRUSHTORRENTS).filter(
                 SITEBRUSHTORRENTS.TASK_ID == int(brush_id)
             ).order_by(SITEBRUSHTORRENTS.LST_MOD_DATE.desc()).all()
+
+    def get_brushtask_torrent_by_enclosure(self, enclosure):
+        """
+        根据URL查询刷流任务种子
+        """
+        if not enclosure:
+            return None
+        return self._db.query(SITEBRUSHTORRENTS).filter(SITEBRUSHTORRENTS.ENCLOSURE == enclosure).first()
 
     def is_brushtask_torrent_exists(self, brush_id, title, enclosure):
         """
@@ -1984,8 +1930,8 @@ class DbHelper:
             self._db.query(CONFIGUSERRSS).filter(CONFIGUSERRSS.ID == int(item.get("id"))).update(
                 {
                     "NAME": item.get("name"),
-                    "ADDRESS": item.get("address"),
-                    "PARSER": item.get("parser"),
+                    "ADDRESS": json.dumps(item.get("address")),
+                    "PARSER": json.dumps(item.get("parser")),
                     "INTERVAL": item.get("interval"),
                     "USES": item.get("uses"),
                     "INCLUDE": item.get("include"),
@@ -2005,8 +1951,8 @@ class DbHelper:
         else:
             self._db.insert(CONFIGUSERRSS(
                 NAME=item.get("name"),
-                ADDRESS=item.get("address"),
-                PARSER=item.get("parser"),
+                ADDRESS=json.dumps(item.get("address")),
+                PARSER=json.dumps(item.get("parser")),
                 INTERVAL=item.get("interval"),
                 USES=item.get("uses"),
                 INCLUDE=item.get("include"),
@@ -2023,6 +1969,23 @@ class DbHelper:
                 NOTE=json.dumps(item.get("note")),
                 PROCESS_COUNT='0'
             ))
+
+    @DbPersist(_db)
+    def check_userrss_task(self, tid=None, state=None):
+        if state is None:
+            return
+        if tid:
+            self._db.query(CONFIGUSERRSS).filter(CONFIGUSERRSS.ID == int(tid)).update(
+                {
+                    "STATE": state
+                }
+            )
+        else:
+            self._db.query(CONFIGUSERRSS).update(
+                {
+                    "STATE": state
+                }
+            )
 
     @DbPersist(_db)
     def insert_userrss_mediainfos(self, tid=None, mediainfo=None):
@@ -2200,39 +2163,53 @@ class DbHelper:
         ))
 
     @DbPersist(_db)
-    def delete_custom_word(self, wid):
+    def delete_custom_word(self, wid=None):
         """
         删除自定义识别词
         """
+        if not wid:
+            self._db.query(CUSTOMWORDS).delete()
         self._db.query(CUSTOMWORDS).filter(CUSTOMWORDS.ID == int(wid)).delete()
 
     @DbPersist(_db)
-    def check_custom_word(self, wid, enabled):
+    def check_custom_word(self, wid=None, enabled=None):
         """
         设置自定义识别词状态
         """
-        self._db.query(CUSTOMWORDS).filter(CUSTOMWORDS.ID == int(wid)).update(
-            {
-                "ENABLED": int(enabled)
-            }
-        )
+        if enabled is None:
+            return
+        if wid:
+            self._db.query(CUSTOMWORDS).filter(CUSTOMWORDS.ID == int(wid)).update(
+                {
+                    "ENABLED": int(enabled)
+                }
+            )
+        else:
+            self._db.query(CUSTOMWORDS).update(
+                {
+                    "ENABLED": int(enabled)
+                }
+            )
 
-    def get_custom_words(self, wid=None, gid=None, enabled=None, wtype=None, regex=None):
+    def get_custom_words(self, wid=None, gid=None, enabled=None):
         """
         查询自定义识别词
         """
         if wid:
-            return self._db.query(CUSTOMWORDS).filter(CUSTOMWORDS.ID == int(wid)) \
-                .order_by(CUSTOMWORDS.GROUP_ID).all()
+            return self._db.query(CUSTOMWORDS).filter(CUSTOMWORDS.ID == int(wid)).all()
         elif gid:
             return self._db.query(CUSTOMWORDS).filter(CUSTOMWORDS.GROUP_ID == int(gid)) \
-                .order_by(CUSTOMWORDS.GROUP_ID).all()
-        elif wtype and enabled is not None and regex is not None:
-            return self._db.query(CUSTOMWORDS).filter(CUSTOMWORDS.ENABLED == int(enabled),
-                                                      CUSTOMWORDS.TYPE == int(wtype),
-                                                      CUSTOMWORDS.REGEX == int(regex)) \
-                .order_by(CUSTOMWORDS.GROUP_ID).all()
-        return self._db.query(CUSTOMWORDS).all().order_by(CUSTOMWORDS.GROUP_ID)
+                .order_by(CUSTOMWORDS.ENABLED.desc(), CUSTOMWORDS.TYPE, CUSTOMWORDS.REGEX, CUSTOMWORDS.ID).all()
+        elif enabled is not None:
+            return self._db.query(CUSTOMWORDS).filter(CUSTOMWORDS.ENABLED == int(enabled)) \
+                .order_by(CUSTOMWORDS.GROUP_ID, CUSTOMWORDS.TYPE, CUSTOMWORDS.REGEX, CUSTOMWORDS.ID).all()
+        return self._db.query(CUSTOMWORDS) \
+            .order_by(CUSTOMWORDS.GROUP_ID,
+                      CUSTOMWORDS.ENABLED.desc(),
+                      CUSTOMWORDS.TYPE,
+                      CUSTOMWORDS.REGEX,
+                      CUSTOMWORDS.ID) \
+            .all()
 
     def is_custom_words_existed(self, replaced=None, front=None, back=None):
         """
@@ -2299,7 +2276,7 @@ class DbHelper:
             return False
 
     @DbPersist(_db)
-    def insert_config_sync_path(self, source, dest, unknown, mode, rename, enabled, note=None):
+    def insert_config_sync_path(self, source, dest, unknown, mode, compatibility, rename, enabled, note=None):
         """
         增加目录同步
         """
@@ -2308,6 +2285,7 @@ class DbHelper:
             DEST=dest,
             UNKNOWN=unknown,
             MODE=mode,
+            COMPATIBILITY=int(compatibility),
             RENAME=int(rename),
             ENABLED=int(enabled),
             NOTE=note
@@ -2328,10 +2306,10 @@ class DbHelper:
         """
         if sid:
             return self._db.query(CONFIGSYNCPATHS).filter(CONFIGSYNCPATHS.ID == int(sid)).all()
-        return self._db.query(CONFIGSYNCPATHS).all()
+        return self._db.query(CONFIGSYNCPATHS).order_by(CONFIGSYNCPATHS.SOURCE).all()
 
     @DbPersist(_db)
-    def check_config_sync_paths(self, sid=None, source=None, rename=None, enabled=None):
+    def check_config_sync_paths(self, sid=None, compatibility=None, rename=None, enabled=None):
         """
         设置目录同步状态
         """
@@ -2347,10 +2325,10 @@ class DbHelper:
                     "ENABLED": int(enabled)
                 }
             )
-        elif source and enabled is not None:
-            self._db.query(CONFIGSYNCPATHS).filter(CONFIGSYNCPATHS.SOURCE == source).update(
+        elif sid and compatibility is not None:
+            self._db.query(CONFIGSYNCPATHS).filter(CONFIGSYNCPATHS.ID == int(sid)).update(
                 {
-                    "ENABLED": int(enabled)
+                    "COMPATIBILITY": int(compatibility)
                 }
             )
 
@@ -2377,7 +2355,6 @@ class DbHelper:
                                 name,
                                 category,
                                 tags,
-                                content_layout,
                                 is_paused,
                                 upload_limit,
                                 download_limit,
@@ -2393,7 +2370,6 @@ class DbHelper:
                     "NAME": name,
                     "CATEGORY": category,
                     "TAGS": tags,
-                    "CONTENT_LAYOUT": int(content_layout),
                     "IS_PAUSED": int(is_paused),
                     "UPLOAD_LIMIT": int(float(upload_limit)),
                     "DOWNLOAD_LIMIT": int(float(download_limit)),
@@ -2407,7 +2383,6 @@ class DbHelper:
                 NAME=name,
                 CATEGORY=category,
                 TAGS=tags,
-                CONTENT_LAYOUT=int(content_layout),
                 IS_PAUSED=int(is_paused),
                 UPLOAD_LIMIT=int(float(upload_limit)),
                 DOWNLOAD_LIMIT=int(float(download_limit)),
@@ -2431,7 +2406,7 @@ class DbHelper:
         """
         if cid:
             return self._db.query(MESSAGECLIENT).filter(MESSAGECLIENT.ID == int(cid)).all()
-        return self._db.query(MESSAGECLIENT).order_by(MESSAGECLIENT.TYPE).all()
+        return self._db.query(MESSAGECLIENT).all()
 
     @DbPersist(_db)
     def insert_message_client(self,
@@ -2524,21 +2499,6 @@ class DbHelper:
         ))
 
     @DbPersist(_db)
-    def delete_douban_history(self, hid):
-        """
-        删除豆瓣同步记录
-        """
-        if not hid:
-            return
-        self._db.query(DOUBANMEDIAS).filter(DOUBANMEDIAS.ID == int(hid)).delete()
-
-    def get_douban_history(self):
-        """
-        查询豆瓣同步记录
-        """
-        return self._db.query(DOUBANMEDIAS).order_by(DOUBANMEDIAS.ADD_TIME.desc()).all()
-
-    @DbPersist(_db)
     def update_downloader(self,
                           did,
                           name,
@@ -2625,7 +2585,7 @@ class DbHelper:
         """
         查询下载器
         """
-        return self._db.query(DOWNLOADER).order_by(DOWNLOADER.TYPE.desc()).all()
+        return self._db.query(DOWNLOADER).all()
 
     @DbPersist(_db)
     def insert_indexer_statistics(self,
@@ -2657,3 +2617,47 @@ class DbHelper:
                           else_=0)).label("SUCCESS"),
             func.avg(INDEXERSTATISTICS.SECONDS).label("AVG"),
         ).group_by(INDEXERSTATISTICS.INDEXER).all()
+
+    @DbPersist(_db)
+    def insert_plugin_history(self, plugin_id, key, value):
+        """
+        新增插件运行记录
+        """
+        self._db.insert(PLUGINHISTORY(
+            PLUGIN_ID=plugin_id,
+            KEY=key,
+            VALUE=value,
+            DATE=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+        ))
+
+    def get_plugin_history(self, plugin_id, key):
+        """
+        查询插件运行记录
+        """
+        if not plugin_id:
+            return None
+        if key:
+            return self._db.query(PLUGINHISTORY).filter(PLUGINHISTORY.PLUGIN_ID == plugin_id,
+                                                        PLUGINHISTORY.KEY == key).first()
+        else:
+            return self._db.query(PLUGINHISTORY).filter(PLUGINHISTORY.PLUGIN_ID == plugin_id).all()
+
+    @DbPersist(_db)
+    def update_plugin_history(self, plugin_id, key, value):
+        """
+        更新插件运行记录
+        """
+        self._db.query(PLUGINHISTORY).filter(PLUGINHISTORY.PLUGIN_ID == plugin_id,
+                                             PLUGINHISTORY.KEY == key).update(
+            {
+                "VALUE": value
+            }
+        )
+
+    @DbPersist(_db)
+    def delete_plugin_history(self, plugin_id, key):
+        """
+        删除插件运行记录
+        """
+        self._db.query(PLUGINHISTORY).filter(PLUGINHISTORY.PLUGIN_ID == plugin_id,
+                                             PLUGINHISTORY.KEY == key).delete()

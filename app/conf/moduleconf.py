@@ -42,12 +42,16 @@ class ModuleConf(object):
         "move": RmtMode.MOVE
     }
 
+    # 远程转移模式
+    REMOTE_RMT_MODES = [RmtMode.RCLONE, RmtMode.RCLONECOPY, RmtMode.MINIO, RmtMode.MINIOCOPY]
+
     # 消息通知类型
     MESSAGE_CONF = {
         "client": {
             "telegram": {
                 "name": "Telegram",
                 "img_url": "../static/img/message/telegram.png",
+                "color": "#22A7E7",
                 "search_type": SearchType.TG,
                 "config": {
                     "token": {
@@ -92,6 +96,7 @@ class ModuleConf(object):
             "wechat": {
                 "name": "微信",
                 "img_url": "../static/img/message/wechat.png",
+                "color": "#00D20B",
                 "search_type": SearchType.WX,
                 "max_length": 2048,
                 "config": {
@@ -155,6 +160,7 @@ class ModuleConf(object):
             "serverchan": {
                 "name": "Server酱",
                 "img_url": "../static/img/message/serverchan.png",
+                "color": "#FEE6DB",
                 "config": {
                     "sckey": {
                         "id": "serverchan_sckey",
@@ -169,6 +175,7 @@ class ModuleConf(object):
             "bark": {
                 "name": "Bark",
                 "img_url": "../static/img/message/bark.webp",
+                "color": "#FF3B30",
                 "config": {
                     "server": {
                         "id": "bark_server",
@@ -199,6 +206,7 @@ class ModuleConf(object):
             "pushdeer": {
                 "name": "PushDeer",
                 "img_url": "../static/img/message/pushdeer.png",
+                "color": "#444E98",
                 "config": {
                     "server": {
                         "id": "pushdeer_server",
@@ -221,6 +229,7 @@ class ModuleConf(object):
             "pushplus": {
                 "name": "PushPlus",
                 "img_url": "../static/img/message/pushplus.jpg",
+                "color": "#047AEB",
                 "config": {
                     "token": {
                         "id": "pushplus_token",
@@ -260,6 +269,7 @@ class ModuleConf(object):
             "iyuu": {
                 "name": "爱语飞飞",
                 "img_url": "../static/img/message/iyuu.png",
+                "color": "#F5BD08",
                 "config": {
                     "token": {
                         "id": "iyuumsg_token",
@@ -274,6 +284,7 @@ class ModuleConf(object):
             "slack": {
                 "name": "Slack",
                 "img_url": "../static/img/message/slack.png",
+                "color": "#E01D5A",
                 "search_type": SearchType.SLACK,
                 "config": {
                     "bot_token": {
@@ -305,6 +316,7 @@ class ModuleConf(object):
             "gotify": {
                 "name": "Gotify",
                 "img_url": "../static/img/message/gotify.png",
+                "color": "#72CAEE",
                 "config": {
                     "server": {
                         "id": "gotify_server",
@@ -331,9 +343,55 @@ class ModuleConf(object):
                     }
                 }
             },
+             "ntfy": {
+                "name": "ntfy",
+                "img_url": "../static/img/message/ntfy.webp",
+                "color": "#409D8A",
+                "config": {
+                    "server": {
+                        "id": "ntfy_server",
+                        "required": True,
+                        "title": "ntfy服务器地址",
+                        "tooltip": "自己搭建ntfy服务端地址",
+                        "type": "text",
+                        "placeholder": "http://localhost:8800"
+                    },
+                    "token": {
+                        "id": "ntfy_token",
+                        "required": True,
+                        "title": "令牌Token",
+                        "tooltip": "ntfy服务端创建的token",
+                        "type": "text"
+                    },
+                     "topic": {
+                        "id": "ntfy_topic",
+                        "required": True,
+                        "title": "topic",
+                        "tooltip": "ntfy创建的topic",
+                        "type": "text"
+                    },
+                    "priority": {
+                        "id": "ntfy_priority",
+                        "required": False,
+                        "title": "消息Priority",
+                        "tooltip": "消息通知优先级, 请填写数字(1-5), 默认: 4",
+                        "type": "text",
+                        "placeholder": "4"
+                    },
+                    "tags": {
+                        "id": "ntfy_tags",
+                        "required": False,
+                        "title": "消息tags",
+                        "tooltip": "消息tags,以逗号分隔, 请参阅ntfy官网, 默认: rotating_light",
+                        "type": "text",
+                        "placeholder": "rotating_light"
+                    }
+                }
+            },
             "chanify": {
                 "name": "Chanify",
                 "img_url": "../static/img/message/chanify.png",
+                "color": "#0B84FF",
                 "config": {
                     "server": {
                         "id": "chanify_server",
@@ -364,6 +422,7 @@ class ModuleConf(object):
             "synologychat": {
                 "name": "Synology Chat",
                 "img_url": "../static/img/message/synologychat.png",
+                "color": "#26C07A",
                 "search_type": SearchType.SYNOLOGY,
                 "config": {
                     "webhook_url": {
@@ -430,17 +489,17 @@ class ModuleConf(object):
                 "name": "自动删种",
                 "fuc_name": "auto_remove_torrents"
             },
+            "ptrefresh_date_message": {
+                "name": "数据统计",
+                "fuc_name": "ptrefresh_date_message"
+            },
             "mediaserver_message": {
                 "name": "媒体服务",
                 "fuc_name": "mediaserver_message"
             },
             "custom_message": {
-                "name": "自定义消息",
+                "name": "插件消息",
                 "fuc_name": "custom_message"
-            },
-            "ptrefresh_date_message": {
-                "name": "数据统计",
-                "fuc_name": "ptrefresh_date_message"
             }
         }
     }
@@ -509,11 +568,9 @@ class ModuleConf(object):
         }
     }
 
-    # 网络测试对象
+    # 网络测试对象，TMDB API除外
     NETTEST_TARGETS = [
         "www.themoviedb.org",
-        "api.themoviedb.org",
-        "api.tmdb.org",
         "image.tmdb.org",
         "webservice.fanart.tv",
         "api.telegram.org",
@@ -526,6 +583,7 @@ class ModuleConf(object):
         "qbittorrent": {
             "name": "Qbittorrent",
             "img_url": "../static/img/downloader/qbittorrent.png",
+            "color": "#3872C2",
             "monitor_enable": True,
             "speedlimit_enable": True,
             "config": {
@@ -562,9 +620,11 @@ class ModuleConf(object):
                     "id": "qbittorrent_torrent_management",
                     "required": False,
                     "title": "种子管理模式",
-                    "tooltip": """默认：Torrent管理模式应用Qbittorrent下载器-选项-下载-保存管理中设置；
-                                手动：Torrent管理模式为手动，下载目录由NAStool传递的下载目录决定；
-                                自动：Torrent管理模式为自动，下载目录由NAStool传递的分类及下载器中分类保存路径决定，需要在NAStool下载目录设置中配置分类标签""",
+                    "tooltip": """【默认】将使用Qbittorrent客户端中的设置，NAStool不进行修改；<br>
+                                【手动】强制开启手动管理模式，下载目录由NAStool传递的下载目录决定；<br>
+                                【自动】强制开启自动管理模式，下载目录由NAStool传递的分类标签决定，没有分类标签的将使用下载器中的默认保存路径；<br>
+                                【注意】自动管理模式下，NAStool将在启动时根据下载目录设置自动为下载器创建相应分类（需设置下载保存目录和分类标签），下载器中已存在该分类且其保存目录与NAStool中设置的不一致时，将会覆盖下载器的设置。
+                                """,
                     "type": "select",
                     "options": {
                         "default": "默认",
@@ -578,6 +638,7 @@ class ModuleConf(object):
         "transmission": {
             "name": "Transmission",
             "img_url": "../static/img/downloader/transmission.png",
+            "color": "#B30100",
             "monitor_enable": True,
             "speedlimit_enable": True,
             "config": {
@@ -637,6 +698,14 @@ class ModuleConf(object):
                     "tooltip": "在Emby设置->高级->API密钥处生成，注意不要复制到了应用名称",
                     "type": "text",
                     "placeholder": ""
+                },
+                "play_host": {
+                    "id": "emby.play_host",
+                    "required": False,
+                    "title": "媒体播放地址",
+                    "tooltip": "配置播放设备的访问地址，用于媒体详情页跳转播放页面；如为https则需要增加https://前缀，留空则默认与服务器地址一致",
+                    "type": "text",
+                    "placeholder": "http://127.0.0.1:8096"
                 }
             }
         },
@@ -661,6 +730,14 @@ class ModuleConf(object):
                     "tooltip": "在Jellyfin设置->高级->API密钥处生成",
                     "type": "text",
                     "placeholder": ""
+                },
+                "play_host": {
+                    "id": "jellyfin.play_host",
+                    "required": False,
+                    "title": "媒体播放地址",
+                    "tooltip": "配置播放设备的访问地址，用于媒体详情页跳转播放页面；如为https则需要增加https://前缀，留空则默认与服务器地址一致",
+                    "type": "text",
+                    "placeholder": "http://127.0.0.1:8096"
                 }
             }
         },
@@ -682,7 +759,7 @@ class ModuleConf(object):
                     "id": "plex.token",
                     "required": False,
                     "title": "X-Plex-Token",
-                    "tooltip": "Plex网页Cookie中的X-Plex-Token，通过浏览器F12->网络中获取，如填写将优先使用；Token与服务器名称、用户名及密码 二选一，推荐使用Token，连接速度更快",
+                    "tooltip": "Plex网页Url中的X-Plex-Token，通过浏览器F12->网络从请求URL中获取，如填写将优先使用；Token与服务器名称、用户名及密码 二选一，推荐使用Token，连接速度更快",
                     "type": "text",
                     "placeholder": "X-Plex-Token与其它认证信息二选一"
                 },
@@ -707,6 +784,14 @@ class ModuleConf(object):
                     "title": "密码",
                     "type": "password",
                     "placeholder": ""
+                },
+                "play_host": {
+                    "id": "plex.play_host",
+                    "required": False,
+                    "title": "媒体播放地址",
+                    "tooltip": "配置播放设备的访问地址，用于媒体详情页跳转播放页面；如为https则需要增加https://前缀，留空则默认与服务器地址一致",
+                    "type": "text",
+                    "placeholder": "https://app.plex.tv"
                 }
             }
         },
@@ -718,6 +803,14 @@ class ModuleConf(object):
     # 发现过滤器
     DISCOVER_FILTER_CONF = {
         "tmdb_movie": {
+            "sort_by": {
+                "name": "排序",
+                "type": "dropdown",
+                "options": [{'value': '', 'name': '默认'},
+                            {'value': 'popularity.desc', 'name': '近期热度'},
+                            {'value': 'vote_average.desc', 'name': '高分优先'},
+                            {'value': 'release_date.desc', 'name': '首播时间'}]
+            },
             "with_genres": {
                 "name": "类型",
                 "type": "dropdown",
@@ -750,6 +843,14 @@ class ModuleConf(object):
             }
         },
         "tmdb_tv": {
+            "sort_by": {
+                "name": "排序",
+                "type": "dropdown",
+                "options": [{'value': '', 'name': '默认'},
+                            {'value': 'popularity.desc', 'name': '近期热度'},
+                            {'value': 'vote_average.desc', 'name': '高分优先'},
+                            {'value': 'first_air_date.desc', 'name': '首播时间'}]
+            },
             "with_genres": {
                 "name": "类型",
                 "type": "dropdown",

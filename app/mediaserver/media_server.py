@@ -10,7 +10,6 @@ from app.message import Message
 from app.utils import ExceptionUtils
 from app.utils.commons import singleton
 from app.utils.types import MediaServerType, MovieTypes, SystemConfigKey, ProgressKey
-from app.utils.types import MediaType
 from config import Config
 
 lock = threading.Lock()
@@ -19,7 +18,6 @@ server_lock = threading.Lock()
 
 @singleton
 class MediaServer:
-
     _mediaserver_schemas = []
 
     _server_type = None
@@ -107,7 +105,21 @@ class MediaServer:
             return
         return self.server.refresh_root_library()
 
-    def get_image_by_id(self, item_id, image_type):
+    def get_episode_image_by_id(self, item_id, season_id, episode_id):
+        """
+         根据itemid、season_id、episode_id从Emby查询图片地址
+         :param item_id: 在Emby中的ID
+         :param season_id: 季
+         :param episode_id: 集
+         :return: 图片对应在TMDB中的URL
+         """
+        if not self.server:
+            return None
+        if not item_id or not season_id or not episode_id:
+            return None
+        return self.server.get_episode_image_by_id(item_id, season_id, episode_id)
+
+    def get_remote_image_by_id(self, item_id, image_type):
         """
         根据ItemId从媒体服务器查询图片地址
         :param item_id: 在Emby中的ID
@@ -118,7 +130,18 @@ class MediaServer:
             return None
         if not item_id:
             return None
-        return self.server.get_image_by_id(item_id, image_type)
+        return self.server.get_remote_image_by_id(item_id, image_type)
+
+    def get_local_image_by_id(self, item_id):
+        """
+        根据ItemId从媒体服务器查询图片地址
+        :param item_id: 在Emby中的ID
+        """
+        if not self.server:
+            return None
+        if not item_id:
+            return None
+        return self.server.get_local_image_by_id(item_id)
 
     def get_no_exists_episodes(self, meta_info,
                                season_number,
@@ -173,6 +196,15 @@ class MediaServer:
             return []
         return self.server.get_items(parent)
 
+    def get_play_url(self, item_id):
+        """
+        获取媒体库中的所有媒体
+        :param item_id: 媒体的id
+        """
+        if not self.server:
+            return None
+        return self.server.get_play_url(item_id)
+
     def get_tv_episodes(self, item_id):
         """
         获取电视剧的所有集数信息
@@ -194,7 +226,7 @@ class MediaServer:
             self.progress.start(ProgressKey.MediaSync)
             self.progress.update(ptype=ProgressKey.MediaSync, text="请稍候...")
             # 获取需同步的媒体库
-            librarys = self.systemconfig.get_system_config(SystemConfigKey.SyncLibrary) or []
+            librarys = self.systemconfig.get(SystemConfigKey.SyncLibrary) or []
             # 汇总统计
             medias_count = self.get_medias_count()
             total_media_count = medias_count.get("MovieCount") + medias_count.get("SeriesCount")
@@ -202,7 +234,7 @@ class MediaServer:
             movie_count = 0
             tv_count = 0
             # 清空登记薄
-            self.mediadb.empty()
+            self.mediadb.empty(server_type=self._server_type)
             for library in self.get_libraries():
                 if str(library.get("id")) not in librarys:
                     continue
@@ -257,13 +289,14 @@ class MediaServer:
         :param tmdbid: TMDB ID
         :param season: 季号
         :param episode: 集号
+        :return: 媒体服务器中的ITEMID
         """
         media = self.mediadb.query(server_type=self._server_type,
                                    title=title,
                                    year=year,
                                    tmdbid=tmdbid)
         if not media:
-            return False
+            return None
 
         # 剧集没有季时默认为第1季
         if mtype not in MovieTypes:
@@ -275,12 +308,12 @@ class MediaServer:
             for seasoninfo in seasoninfos:
                 if seasoninfo.get("season_num") == int(season):
                     if not episode:
-                        return True
+                        return media.ITEM_ID
                     elif seasoninfo.get("episode_num") == int(episode):
-                        return True
-            return False
+                        return media.ITEM_ID
+            return None
         else:
-            return True
+            return media.ITEM_ID
 
     def get_mediasync_status(self):
         """
@@ -328,22 +361,35 @@ class MediaServer:
             log.error(f"【MediaServer】webhook 消息解析异常")
         if event_info:
             # 获取消息图片
-            image_url = None
             if event_info.get("item_type") == "TV":
-                item_info = self.get_iteminfo(event_info.get('item_id'))
-                if item_info:
-                    image_url = self.media.get_episode_images(tv_id=item_info.get('ProviderIds', {}).get('Tmdb'),
-                                                              season_id=event_info.get('season_id'),
-                                                              episode_id=event_info.get('episode_id'))
+                # 根据返回的item_id、season_id、episode_id去调用媒体服务器获取
+                image_url = self.get_episode_image_by_id(item_id=event_info.get('item_id'),
+                                                         season_id=event_info.get('season_id'),
+                                                         episode_id=event_info.get('episode_id'))
+            elif event_info.get("item_type") in ["MOV", "SHOW"]:
+                # 根据返回的item_id去调用媒体服务器获取
+                image_url = self.get_remote_image_by_id(item_id=event_info.get('item_id'),
+                                                        image_type="Backdrop")
+            elif event_info.get("item_type") == "AUD":
+                image_url = self.get_local_image_by_id(item_id=event_info.get('item_id'))
             else:
-                if self._server_type == "plex":
-                    # Plex:根据返回的tmdb_id去调用tmdb获取
-                    image_url = self.media.get_tmdb_backdrop(mtype=MediaType.MOVIE,
-                                                             tmdbid=event_info.get('tmdb_id'))
-                else:
-                    # Emby,Jellyfin:根据返回的item_id去调用媒体服务器获取
-                    image_url = self.get_image_by_id(item_id=event_info.get('item_id'),
-                                                     image_type="Backdrop")
+                image_url = None
             self.message.send_mediaserver_message(event_info=event_info,
                                                   channel=channel.value,
                                                   image_url=image_url)
+
+    def get_resume(self, num=12):
+        """
+        获取继续观看
+        """
+        if not self.server:
+            return []
+        return self.server.get_resume(num=num)
+
+    def get_latest(self, num=20):
+        """
+        获取最近添加
+        """
+        if not self.server:
+            return []
+        return self.server.get_latest(num=num)
